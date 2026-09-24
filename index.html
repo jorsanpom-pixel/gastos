@@ -108,6 +108,8 @@
   .dato { background: rgba(255,255,255,.08); border-radius: 14px; padding: 10px; text-align: center; }
   .dato b { display: block; font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 18px; font-weight: 700; }
   .dato span { font-size: 12px; color: var(--heroe-tenue); }
+  .dato b.pos { color: var(--baja); }
+  .dato b.neg { color: var(--sube); }
 
   /* ---------- Tarjetas ---------- */
   .tarjeta { background: var(--tarjeta); border-radius: var(--radio); padding: 16px; margin-top: 14px; }
@@ -167,6 +169,7 @@
   .mov .txt { min-width: 0; display: grid; }
   .mov .nombre { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .mov .sub { font-size: 13px; color: var(--tenue); }
+  .mov.ingreso .imp, .mas { color: var(--ok); }
   .mov .imp { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-weight: 700; font-size: 17px; }
   .acc { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 4px 8px 12px 64px; }
   .chip {
@@ -223,9 +226,9 @@
         </div>
       </div>
       <div class="datos">
-        <div class="dato"><b id="d-num"></b><span>gastos</span></div>
-        <div class="dato"><b id="d-media"></b><span>media al día</span></div>
-        <div class="dato"><b id="d-deduc"></b><span>deducible</span></div>
+        <div class="dato"><b id="d-ing"></b><span>ingresos</span></div>
+        <div class="dato"><b id="d-ahorro"></b><span id="d-ahorro-etq">ahorro</span></div>
+        <div class="dato"><b id="d-media"></b><span>gasto al día</span></div>
       </div>
     </section>
 
@@ -242,7 +245,7 @@
     </section>
 
     <section class="tarjeta">
-      <div class="tarjeta-cab"><h3>Categorías</h3></div>
+      <div class="tarjeta-cab"><h3>Categorías de gasto</h3><span class="nota" id="cats-nota"></span></div>
       <div class="cats" id="cats"></div>
     </section>
 
@@ -278,7 +281,15 @@ var CATS = {
   'Otros':          { c: '#94A3B8', i: '📦' },
   'Sin clasificar': { c: '#F97316', i: '❓' }
 };
+var CATS_INGRESO = {
+  'Facturación':    { c: '#10B981', i: '🧾' },
+  'Nómina':         { c: '#14B8A6', i: '💶' },
+  'Beca o ayuda':   { c: '#0EA5E9', i: '🎓' },
+  'Otros ingresos': { c: '#22C55E', i: '💰' }
+};
 var ELEGIBLES = Object.keys(CATS).filter(function (c) { return c !== 'Sin clasificar'; });
+var INGRESOS = Object.keys(CATS_INGRESO);
+INGRESOS.forEach(function (k) { CATS[k] = CATS_INGRESO[k]; });
 
 var TZ = 'Europe/Madrid';
 var eur = new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR' });
@@ -289,6 +300,7 @@ var nombreMes = new Intl.DateTimeFormat('es-ES', { month: 'long', year: 'numeric
 var soloMes = new Intl.DateTimeFormat('es-ES', { month: 'long' });
 
 var mesActual = new Date(); mesActual.setDate(1); mesActual.setHours(0, 0, 0, 0);
+var movs = [];
 var gastos = [];
 var totalAnterior = 0;
 
@@ -311,7 +323,7 @@ function avisar(texto) {
 }
 
 function opciones(sel, incluirSin) {
-  var lista = incluirSin ? Object.keys(CATS) : ELEGIBLES;
+  var lista = incluirSin === 'ingreso' ? INGRESOS : incluirSin ? ELEGIBLES.concat(['Sin clasificar']) : ELEGIBLES;
   return lista.map(function (c) {
     return '<option ' + (c === sel ? 'selected' : '') + ' value="' + esc(c) + '">' + info(c).i + ' ' + esc(c) + '</option>';
   }).join('');
@@ -361,27 +373,28 @@ function demoDatos() {
     ['LIDL ALFAZ', 18.20, 'Alimentación', 5], ['INVERSIONES LEVANTE SL', 9.40, 'Sin clasificar', 6],
     ['ZARA BENIDORM', 39.95, 'Ropa', 8], ['Luz y agua', 62.10, 'Suministros', 10], ['GLOVO', 21.30, 'Ocio', 12],
     ['Movil', 10.45, 'Telefonía', 12], ['CONSUM', 33.80, 'Alimentación', 15], ['CABIFY', 14.60, 'Transporte', 18],
-    ['Café con amigos', 4.50, 'Ocio', 20], ['MERCADONA 2341 BENIDORM', 27.15, 'Alimentación', 22]
+    ['Café con amigos', 4.50, 'Ocio', 20], ['MERCADONA 2341 BENIDORM', 27.15, 'Alimentación', 22],
+    ['Factura cliente web', 650.00, 'Facturación', 4, 'ingreso'], ['Beca', 300.00, 'Beca o ayuda', 10, 'ingreso']
   ];
   return base.filter(function (b) { return b[3] <= tope; }).map(function (b, n) {
     var f = new Date(mesActual.getFullYear(), mesActual.getMonth(), b[3], 10 + (n % 9), (n * 7) % 60);
-    return { id: 'demo' + n, fecha: f.toISOString(), importe: b[1], comercio: b[0], categoria: b[2], deducible: b[2] === 'Cuota autónomo', origen: 'demo' };
+    return { id: 'demo' + n, fecha: f.toISOString(), importe: b[1], comercio: b[0], categoria: b[2], deducible: b[2] === 'Cuota autónomo', origen: 'demo', tipo: b[4] || 'gasto' };
   }).sort(function (a, b) { return a.fecha < b.fecha ? 1 : -1; });
 }
 
 async function cargar() {
   var nm = nombreMes.format(mesActual); $('mes-nombre').textContent = nm.charAt(0).toUpperCase() + nm.slice(1);
-  if (DEMO) { gastos = demoDatos(); totalAnterior = 1090; pintar(); return; }
+  if (DEMO) { movs = demoDatos(); totalAnterior = 1090; pintar(); return; }
   var desde = new Date(mesActual);
   var hasta = new Date(mesActual); hasta.setMonth(hasta.getMonth() + 1);
   var antes = new Date(mesActual); antes.setMonth(antes.getMonth() - 1);
   var res = await Promise.all([
     db.from('gastos').select('*').gte('fecha', desde.toISOString()).lt('fecha', hasta.toISOString()).order('fecha', { ascending: false }),
-    db.from('gastos').select('importe').gte('fecha', antes.toISOString()).lt('fecha', desde.toISOString())
+    db.from('gastos').select('importe, tipo').gte('fecha', antes.toISOString()).lt('fecha', desde.toISOString())
   ]);
   if (res[0].error) { avisar('No se pudieron cargar los gastos: ' + res[0].error.message); return; }
-  gastos = res[0].data || [];
-  totalAnterior = (res[1].data || []).reduce(function (s, g) { return s + Number(g.importe); }, 0);
+  movs = res[0].data || [];
+  totalAnterior = (res[1].data || []).filter(function (g) { return g.tipo !== 'ingreso'; }).reduce(function (s, g) { return s + Number(g.importe); }, 0);
   pintar();
 }
 
@@ -404,6 +417,9 @@ function anillo(orden, total) {
 }
 
 function pintar() {
+  gastos = movs.filter(function (g) { return g.tipo !== 'ingreso'; });
+  var ingresos = movs.filter(function (g) { return g.tipo === 'ingreso'; });
+  var totalIng = ingresos.reduce(function (s, g) { return s + Number(g.importe); }, 0);
   var total = gastos.reduce(function (s, g) { return s + Number(g.importe); }, 0);
   var hoy = new Date();
   var esMesActual = mesActual.getFullYear() === hoy.getFullYear() && mesActual.getMonth() === hoy.getMonth();
@@ -426,9 +442,13 @@ function pintar() {
 
   // Datos rápidos
   var deducible = gastos.filter(function (g) { return g.deducible; }).reduce(function (s, g) { return s + Number(g.importe); }, 0);
-  $('d-num').textContent = gastos.length;
+  var ahorro = totalIng - total;
+  $('d-ing').textContent = eurCorto.format(totalIng);
+  $('d-ahorro').textContent = (ahorro > 0 ? '+' : '') + eurCorto.format(ahorro);
+  $('d-ahorro').className = ahorro >= 0 ? 'pos' : 'neg';
+  $('d-ahorro-etq').textContent = totalIng > 0 ? 'ahorro (' + Math.round(ahorro / totalIng * 100) + ' %)' : 'ahorro';
   $('d-media').textContent = eurCorto.format(diasPasados ? total / diasPasados : 0);
-  $('d-deduc').textContent = eurCorto.format(deducible);
+  $('cats-nota').textContent = deducible ? eur.format(deducible) + ' deducibles' : '';
 
   // Reparto por categoría
   var porCat = {};
@@ -477,29 +497,31 @@ function pintar() {
   }).join('');
 
   // Movimientos agrupados por día
-  if (!gastos.length) {
-    $('lista').innerHTML = '<div class="vacio"><span class="grande">🧾</span>No hay gastos en ' + esc(soloMes.format(mesActual)) +
+  if (!movs.length) {
+    $('lista').innerHTML = '<div class="vacio"><span class="grande">🧾</span>No hay movimientos en ' + esc(soloMes.format(mesActual)) +
       '. Paga con Apple Pay o usa el atajo "Gasto" y aparecerán aquí.</div>';
     return;
   }
   var ayer = new Date(hoy); ayer.setDate(hoy.getDate() - 1);
   var grupos = [], actual = null;
-  gastos.forEach(function (g) {
+  movs.forEach(function (g) {
     var f = new Date(g.fecha);
-    if (!actual || !mismoDia(actual.fecha, f)) { actual = { fecha: f, items: [], suma: 0 }; grupos.push(actual); }
-    actual.items.push(g); actual.suma += Number(g.importe);
+    if (!actual || !mismoDia(actual.fecha, f)) { actual = { fecha: f, items: [], suma: 0, ing: 0 }; grupos.push(actual); }
+    actual.items.push(g);
+    if (g.tipo === 'ingreso') actual.ing += Number(g.importe); else actual.suma += Number(g.importe);
   });
   $('lista').innerHTML = grupos.map(function (gr) {
     var etiqueta = mismoDia(gr.fecha, hoy) ? 'Hoy' : mismoDia(gr.fecha, ayer) ? 'Ayer' : diaFmt.format(gr.fecha);
-    return '<div class="dia"><div class="dia-cab"><span>' + esc(etiqueta) + '</span><span>' + eur.format(gr.suma) + '</span></div>' +
+    return '<div class="dia"><div class="dia-cab"><span>' + esc(etiqueta) + '</span><span>' + (gr.ing ? '<span class="mas">+' + eur.format(gr.ing) + '</span> ' : '') + (gr.suma ? eur.format(gr.suma) : '') + '</span></div>' +
       gr.items.map(function (g) {
-        var c = catDe(g);
-        return '<details class="mov" data-id="' + esc(g.id) + '"><summary>' + icono(c) +
+        var esIng = g.tipo === 'ingreso';
+        var c = esIng ? (g.categoria || 'Otros ingresos') : catDe(g);
+        return '<details class="mov' + (esIng ? ' ingreso' : '') + '" data-id="' + esc(g.id) + '"><summary>' + icono(c) +
           '<span class="txt"><span class="nombre">' + esc(g.comercio || 'Sin nombre') + '</span>' +
           '<span class="sub">' + horaFmt.format(new Date(g.fecha)) + ', ' + esc(c) + (g.deducible ? ', deducible' : '') + '</span></span>' +
-          '<span class="imp">' + eur.format(g.importe) + '</span></summary>' +
-          '<div class="acc"><select aria-label="Cambiar categoría" data-accion="categoria">' + opciones(c, true) + '</select>' +
-          '<button class="chip" data-accion="deducible" aria-pressed="' + (g.deducible ? 'true' : 'false') + '">Deducible</button>' +
+          '<span class="imp">' + (esIng ? '+' : '') + eur.format(g.importe) + '</span></summary>' +
+          '<div class="acc"><select aria-label="Cambiar categoría" data-accion="categoria">' + opciones(c, esIng ? 'ingreso' : true) + '</select>' +
+          (esIng ? '' : '<button class="chip" data-accion="deducible" aria-pressed="' + (g.deducible ? 'true' : 'false') + '">Deducible</button>') +
           '<button class="borrar" data-accion="borrar">Borrar</button></div></details>';
       }).join('') + '</div>';
   }).join('');
@@ -536,12 +558,12 @@ document.addEventListener('click', async function (e) {
     var nuevo = btn.getAttribute('aria-pressed') !== 'true';
     var r = await db.from('gastos').update({ deducible: nuevo }).eq('id', id);
     if (r.error) { avisar('No se pudo guardar.'); return; }
-    gastos.forEach(function (g) { if (g.id === id) g.deducible = nuevo; });
+    movs.forEach(function (g) { if (g.id === id) g.deducible = nuevo; });
     avisar(nuevo ? 'Marcado como deducible.' : 'Ya no es deducible.');
     pintar();
   }
   if (accion === 'borrar') {
-    var g = gastos.filter(function (x) { return x.id === id; })[0];
+    var g = movs.filter(function (x) { return x.id === id; })[0];
     if (!confirm('¿Borrar "' + (g.comercio || 'Sin nombre') + '" de ' + eur.format(g.importe) + '? No se puede deshacer.')) return;
     var rb = await db.from('gastos').delete().eq('id', id);
     if (rb.error) { avisar('No se pudo borrar.'); return; }
