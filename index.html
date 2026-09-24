@@ -88,7 +88,7 @@
     border-radius: 28px; padding: 16px 16px 20px;
   }
   .heroe-cab { display: flex; align-items: center; justify-content: space-between; }
-  .heroe-cab h2 { margin: 0; font-size: 18px; font-weight: 600; text-transform: capitalize; }
+  .heroe-cab h2 { margin: 0; font-size: 18px; font-weight: 600; }
   .flecha {
     width: 40px; height: 40px; border-radius: 50%; border: 0;
     background: rgba(255,255,255,.12); color: var(--heroe-tinta); font-size: 22px; line-height: 1;
@@ -370,7 +370,7 @@ function demoDatos() {
 }
 
 async function cargar() {
-  $('mes-nombre').textContent = nombreMes.format(mesActual);
+  var nm = nombreMes.format(mesActual); $('mes-nombre').textContent = nm.charAt(0).toUpperCase() + nm.slice(1);
   if (DEMO) { gastos = demoDatos(); totalAnterior = 1090; pintar(); return; }
   var desde = new Date(mesActual);
   var hasta = new Date(mesActual); hasta.setMonth(hasta.getMonth() + 1);
@@ -461,7 +461,7 @@ function pintar() {
     return '<div class="' + clase + '" style="height:' + alto.toFixed(1) + '%" title="Día ' + (i + 1) + ': ' + eur.format(v) + '"></div>';
   }).join('');
   $('eje').innerHTML = '<span>1</span><span>' + Math.ceil(diasMes / 2) + '</span><span>' + diasMes + '</span>';
-  $('dia-max').textContent = total > 0 ? 'Día más alto: ' + (diaTop + 1) + ', ' + eur.format(maxDia) : '';
+  $('dia-max').textContent = total > 0 ? 'Máximo el día ' + (diaTop + 1) + ': ' + eur.format(maxDia) : '';
 
   // Por revisar
   var pend = gastos.filter(function (g) { return catDe(g) === 'Sin clasificar'; });
