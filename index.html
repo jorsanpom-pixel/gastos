@@ -181,6 +181,16 @@
   .fuera { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
   .fuera span:first-child { color: var(--tenue); }
 
+  /* Editor del presupuesto */
+  .editor, .editor * { box-sizing: border-box; }
+  .editor { margin-top: 22px; border-top: 1px solid var(--linea); padding-top: 12px; }
+  .editor summary { cursor: pointer; font-weight: 600; color: var(--acento); list-style: none; padding: 6px 0; }
+  .editor summary::-webkit-details-marker { display: none; }
+  .editor summary::before { content: "✎ "; }
+  .campo-pres { display: grid; grid-template-columns: 1fr 120px; align-items: center; gap: 12px; padding: 5px 0; font-size: 14px; }
+  .campo-pres input { min-width: 0; padding: 9px 10px; border: 1px solid var(--linea); border-radius: 12px; background: var(--fondo); text-align: right; font-size: 15px; }
+  .editor .btn { width: 100%; margin-top: 14px; }
+
   /* Por revisar */
   .revisar { border: 2px solid var(--aviso); }
   .revisar h3 { color: var(--aviso); }
@@ -331,13 +341,16 @@ var CATS = {
   'Otros':          { c: '#94A3B8', i: '📦' },
   'Sin clasificar': { c: '#F97316', i: '❓' }
 };
+// Un ingreso en "Ahorro" = sacar dinero del bote de ahorro
 var CATS_INGRESO = {
   'Facturación':    { c: '#10B981', i: '🧾' },
   'Nómina':         { c: '#14B8A6', i: '💶' },
   'Beca o ayuda':   { c: '#0EA5E9', i: '🎓' },
-  'Otros ingresos': { c: '#22C55E', i: '💰' }
+  'Otros ingresos': { c: '#22C55E', i: '💰' },
+  'Ahorro':         { c: '#84CC16', i: '🐷' }
 };
-// Tu presupuesto mensual (€). Cambia aquí los importes cuando cambien tus fijos u objetivos.
+// Presupuesto por defecto (€). El que manda es el de la tabla "ajustes" de Supabase, si existe;
+// se edita desde la propia web ("Editar presupuesto") y lo lee también el dashboard.
 var PRESUPUESTO = {
   ingresos: 1445.85,
   fijos: { 'Vivienda': 717, 'Cuota autónomo': 88.56, 'Suministros': 87.50, 'Telefonía': 11, 'Suscripciones': 24.77 },
@@ -345,6 +358,7 @@ var PRESUPUESTO = {
   ahorro: 300,
   colchon: 3300
 };
+var presupuestoEnNube = false;
 var GRUPOS = { fijos: { n: 'Fijos', c: '#A78BFA' }, variables: { n: 'Día a día', c: '#FBBF24' }, ahorro: { n: 'Ahorro', c: '#A3E635' } };
 
 var ELEGIBLES = Object.keys(CATS).filter(function (c) { return c !== 'Sin clasificar'; });
@@ -455,12 +469,16 @@ async function cargar() {
     db.from('gastos').select('*').gte('fecha', desde.toISOString()).lt('fecha', hasta.toISOString()).order('fecha', { ascending: false }),
     db.from('gastos').select('importe, tipo').gte('fecha', antes.toISOString()).lt('fecha', desde.toISOString()),
     // Colchón: todo lo apuntado en "Ahorro" hasta el final del mes que se ve; un ingreso en "Ahorro" es una retirada
-    db.from('gastos').select('importe, tipo').ilike('categoria', 'Ahorro%').lt('fecha', hasta.toISOString())
+    db.from('gastos').select('importe, tipo').ilike('categoria', 'Ahorro%').lt('fecha', hasta.toISOString()),
+    db.from('ajustes').select('valor').eq('clave', 'presupuesto').maybeSingle()
   ]);
   if (res[0].error) { avisar('No se pudieron cargar los gastos: ' + res[0].error.message); return; }
   movs = res[0].data || [];
   totalAnterior = suma((res[1].data || []).filter(function (g) { return g.tipo !== 'ingreso'; }));
   colchonTotal = (res[2].data || []).reduce(function (s, g) { return s + (g.tipo === 'ingreso' ? -1 : 1) * Number(g.importe); }, 0);
+  // Si la tabla "ajustes" aún no existe, se usa el presupuesto por defecto de arriba
+  presupuestoEnNube = !res[3].error && !!(res[3].data && res[3].data.valor);
+  if (presupuestoEnNube) PRESUPUESTO = Object.assign({}, PRESUPUESTO, res[3].data.valor);
   pintar();
 }
 
@@ -597,7 +615,8 @@ function pintar() {
     hPres += '<div class="grupo"><div class="grupo-cab"><span>Fuera del presupuesto</span><span>' + eur.format(suma(fuera.map(function (c) { return { importe: porCat[c] }; }))) + '</span></div>' +
       fuera.map(function (c) { return '<div class="fuera"><span>' + info(c).i + ' ' + esc(c) + '</span><span>' + eur.format(porCat[c]) + '</span></div>'; }).join('') + '</div>';
   }
-  $('presupuesto').innerHTML = hPres;
+  $('presupuesto').innerHTML = hPres + editorPresupuesto(P);
+  $('guardar-pres').onclick = guardarPresupuesto;
   $('pres-nota').textContent = esMesActual ? diasRestantes + (diasRestantes === 1 ? ' día por delante' : ' días por delante') : '';
 
   // Día a día
@@ -659,6 +678,43 @@ function pintar() {
           '<button class="borrar" data-accion="borrar">Borrar</button></div></details>';
       }).join('') + '</div>';
   }).join('');
+}
+
+/* ---------- Editar presupuesto (tabla "ajustes" de Supabase) ---------- */
+function editorPresupuesto(P) {
+  function campo(etq, grupo, clave, valor, paso) {
+    return '<label class="campo-pres"><span>' + esc(etq) + '</span><input type="number" inputmode="decimal" min="0" step="' + (paso || '0.01') +
+      '" data-grupo="' + grupo + '" data-clave="' + esc(clave) + '" value="' + valor + '"></label>';
+  }
+  function bloque(titulo, grupo, obj) {
+    return '<div class="sep-bal">' + titulo + '</div>' + Object.keys(obj).map(function (c) { return campo(info(c).i + ' ' + c, grupo, c, obj[c]); }).join('');
+  }
+  return '<details class="editor"><summary>Editar presupuesto</summary>' +
+    '<div class="sep-bal">General</div>' +
+    campo('Ingresos previstos al mes', 'raiz', 'ingresos', P.ingresos) +
+    campo('Ahorro al mes', 'raiz', 'ahorro', P.ahorro) +
+    campo('Meta del colchón', 'raiz', 'colchon', P.colchon) +
+    bloque('Fijos', 'fijos', P.fijos) + bloque('Día a día', 'variables', P.variables) +
+    '<button class="btn" id="guardar-pres" type="button">Guardar presupuesto</button>' +
+    '<p class="nota-bal">' + (presupuestoEnNube ? 'Se guarda en Supabase: lo verán la web y el dashboard.' :
+      'Aún no existe la tabla "ajustes" en Supabase; hasta crearla se usa el presupuesto por defecto.') + '</p></details>';
+}
+
+async function guardarPresupuesto() {
+  if (DEMO) { avisar('Modo demostración: no se guarda nada.'); return; }
+  var nuevo = JSON.parse(JSON.stringify(PRESUPUESTO));
+  var mal = false;
+  document.querySelectorAll('.editor input[data-grupo]').forEach(function (inp) {
+    var v = Number(String(inp.value).replace(',', '.'));
+    if (!isFinite(v) || v < 0 || inp.value === '') { mal = true; return; }
+    if (inp.dataset.grupo === 'raiz') nuevo[inp.dataset.clave] = v;
+    else nuevo[inp.dataset.grupo][inp.dataset.clave] = v;
+  });
+  if (mal) { avisar('Revisa los importes: tienen que ser números de 0 en adelante.'); return; }
+  var r = await db.from('ajustes').upsert({ clave: 'presupuesto', valor: nuevo, actualizado: new Date().toISOString() }, { onConflict: 'clave' });
+  if (r.error) { avisar('No se pudo guardar. ¿Has creado la tabla "ajustes" en Supabase?'); return; }
+  avisar('Presupuesto guardado.');
+  cargar();
 }
 
 /* ---------- Acciones ---------- */
