@@ -137,6 +137,49 @@
   .pista .riel { flex: 1; height: 8px; border-radius: 999px; background: var(--linea); overflow: hidden; }
   .pista .relleno { display: block; height: 100%; border-radius: 999px; transition: width .6s ease; }
   .pista .pct { font-size: 12px; color: var(--tenue); width: 38px; text-align: right; }
+  .pp .pista { display: grid; grid-template-columns: 1fr; gap: 4px; }
+
+  /* Leyenda del anillo */
+  .leyenda { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; font-size: 12px; color: var(--heroe-tenue); margin: 2px 0 6px; }
+  .leyenda span { display: inline-flex; align-items: center; gap: 6px; }
+  .leyenda i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+  /* Balance */
+  .linea-bal { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 7px 0; font-size: 15px; }
+  .linea-bal .etq-bal { color: var(--tenue); }
+  .linea-bal b { font-weight: 600; }
+  .linea-bal.total { border-top: 1px solid var(--linea); margin-top: 4px; padding-top: 11px; }
+  .linea-bal.total .etq-bal { color: var(--tinta); font-weight: 600; }
+  .linea-bal.total b { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-size: 20px; font-weight: 700; }
+  .linea-bal.libre b { color: var(--ok); }
+  .linea-bal.libre.rojo b { color: var(--aviso); }
+  .sep-bal { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tenue); margin: 16px 0 2px; }
+  .nota-bal { font-size: 13px; color: var(--tenue); margin: 10px 0 0; }
+
+  /* Presupuesto */
+  .grupo + .grupo { margin-top: 22px; }
+  .grupo-cab { display: flex; justify-content: space-between; align-items: baseline; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--tenue); margin-bottom: 10px; }
+  .grupo-cab span:last-child { text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .fijo { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; }
+  .fijo + .fijo { margin-top: 10px; }
+  .fijo .nombre { font-weight: 600; }
+  .fijo .sub { display: block; font-size: 13px; color: var(--tenue); }
+  .fijo .ico { grid-row: auto; }
+  .estado { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
+  .estado.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  .estado.pend { background: color-mix(in srgb, var(--aviso) 14%, transparent); color: var(--aviso); }
+  .pp .queda { font-size: 13px; color: var(--tenue); }
+  .pp .queda.pasado { color: var(--aviso); font-weight: 600; }
+  .pp .cuanto small { font-weight: 500; color: var(--tenue); }
+  .relleno.aviso { background: var(--aviso) !important; }
+  .meta-caja + .meta-caja { margin-top: 14px; }
+  .meta-cab { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; }
+  .meta-cab b { font-weight: 600; }
+  .meta-cab span { color: var(--tenue); }
+  .riel-meta { height: 10px; border-radius: 999px; background: var(--linea); overflow: hidden; }
+  .riel-meta span { display: block; height: 100%; border-radius: 999px; background: var(--ok); transition: width .6s ease; }
+  .fuera { display: flex; justify-content: space-between; font-size: 14px; padding: 4px 0; }
+  .fuera span:first-child { color: var(--tenue); }
 
   /* Por revisar */
   .revisar { border: 2px solid var(--aviso); }
@@ -220,15 +263,16 @@
       <div class="anillo-caja">
         <div id="anillo"></div>
         <div class="centro">
-          <span class="etq">Gastado este mes</span>
+          <span class="etq" id="centro-etq">Puedes gastar</span>
           <span class="cifra" id="total"></span>
           <span class="comp" id="comp" hidden></span>
         </div>
       </div>
+      <div class="leyenda" id="leyenda"></div>
       <div class="datos">
         <div class="dato"><b id="d-ing"></b><span>ingresos</span></div>
-        <div class="dato"><b id="d-ahorro"></b><span id="d-ahorro-etq">ahorro</span></div>
-        <div class="dato"><b id="d-media"></b><span>gasto al día</span></div>
+        <div class="dato"><b id="d-gas"></b><span>gastado</span></div>
+        <div class="dato"><b id="d-bal"></b><span>balance</span></div>
       </div>
     </section>
 
@@ -239,14 +283,19 @@
     </section>
 
     <section class="tarjeta">
-      <div class="tarjeta-cab"><h3>Día a día</h3><span class="nota" id="dia-max"></span></div>
-      <div class="barras" id="barras"></div>
-      <div class="eje" id="eje"></div>
+      <div class="tarjeta-cab"><h3>Balance del mes</h3><span class="nota" id="cats-nota"></span></div>
+      <div id="balance"></div>
     </section>
 
     <section class="tarjeta">
-      <div class="tarjeta-cab"><h3>Categorías de gasto</h3><span class="nota" id="cats-nota"></span></div>
-      <div class="cats" id="cats"></div>
+      <div class="tarjeta-cab"><h3>Presupuesto</h3><span class="nota" id="pres-nota"></span></div>
+      <div id="presupuesto"></div>
+    </section>
+
+    <section class="tarjeta">
+      <div class="tarjeta-cab"><h3>Gasto por día</h3><span class="nota" id="dia-max"></span></div>
+      <div class="barras" id="barras"></div>
+      <div class="eje" id="eje"></div>
     </section>
 
     <section class="tarjeta">
@@ -276,6 +325,7 @@ var CATS = {
   'Vivienda':       { c: '#8B5CF6', i: '🏠' },
   'Suministros':    { c: '#06B6D4', i: '💡' },
   'Telefonía':      { c: '#6366F1', i: '📱' },
+  'Suscripciones':  { c: '#EC4899', i: '🔁' },
   'Cuota autónomo': { c: '#EF4444', i: '💼' },
   'Ahorro':         { c: '#84CC16', i: '🐷' },
   'Otros':          { c: '#94A3B8', i: '📦' },
@@ -287,6 +337,16 @@ var CATS_INGRESO = {
   'Beca o ayuda':   { c: '#0EA5E9', i: '🎓' },
   'Otros ingresos': { c: '#22C55E', i: '💰' }
 };
+// Tu presupuesto mensual (€). Cambia aquí los importes cuando cambien tus fijos u objetivos.
+var PRESUPUESTO = {
+  ingresos: 1445.85,
+  fijos: { 'Vivienda': 717, 'Cuota autónomo': 88.56, 'Suministros': 87.50, 'Telefonía': 11, 'Suscripciones': 24.77 },
+  variables: { 'Alimentación': 100, 'Transporte': 50, 'Ocio': 67 },
+  ahorro: 300,
+  colchon: 3300
+};
+var GRUPOS = { fijos: { n: 'Fijos', c: '#A78BFA' }, variables: { n: 'Día a día', c: '#FBBF24' }, ahorro: { n: 'Ahorro', c: '#A3E635' } };
+
 var ELEGIBLES = Object.keys(CATS).filter(function (c) { return c !== 'Sin clasificar'; });
 var INGRESOS = Object.keys(CATS_INGRESO);
 INGRESOS.forEach(function (k) { CATS[k] = CATS_INGRESO[k]; });
@@ -303,6 +363,7 @@ var mesActual = new Date(); mesActual.setDate(1); mesActual.setHours(0, 0, 0, 0)
 var movs = [];
 var gastos = [];
 var totalAnterior = 0;
+var colchonTotal = 0;
 
 function $(id) { return document.getElementById(id); }
 function esc(s) {
@@ -311,7 +372,10 @@ function esc(s) {
   });
 }
 function info(c) { return CATS[c] || CATS['Otros']; }
-function catDe(g) { return g.categoria || 'Sin clasificar'; }
+// Quita emojis y símbolos ("Alimentación 🥗" -> "Alimentación") para que cuadre con CATS y el presupuesto
+function limpiarCat(c) { return String(c || '').replace(/[^\p{L}\p{N}\s]/gu, '').replace(/\s+/g, ' ').trim(); }
+function catDe(g) { return limpiarCat(g.categoria) || 'Sin clasificar'; }
+function suma(lista) { return lista.reduce(function (s, g) { return s + Number(g.importe); }, 0); }
 function icono(c) { var x = info(c); return '<span class="ico" style="background:' + x.c + '26">' + x.i + '</span>'; }
 
 function avisar(texto) {
@@ -368,13 +432,12 @@ function demoDatos() {
   var esMesActual = mesActual.getFullYear() === hoy.getFullYear() && mesActual.getMonth() === hoy.getMonth();
   var tope = esMesActual ? hoy.getDate() : new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 0).getDate();
   var base = [
-    ['MERCADONA 2341 BENIDORM', 42.35, 'Alimentación', 1], ['REPSOL BENIDORM', 55.00, 'Transporte', 2],
-    ['Alquiler piso', 700.00, 'Vivienda', 1], ['NETFLIX.COM', 12.99, 'Ocio', 3], ['Cuota autónomo', 88.56, 'Cuota autónomo', 1],
-    ['LIDL ALFAZ', 18.20, 'Alimentación', 5], ['INVERSIONES LEVANTE SL', 9.40, 'Sin clasificar', 6],
-    ['ZARA BENIDORM', 39.95, 'Ropa', 8], ['Luz y agua', 62.10, 'Suministros', 10], ['GLOVO', 21.30, 'Ocio', 12],
-    ['Movil', 10.45, 'Telefonía', 12], ['CONSUM', 33.80, 'Alimentación', 15], ['CABIFY', 14.60, 'Transporte', 18],
-    ['Café con amigos', 4.50, 'Ocio', 20], ['MERCADONA 2341 BENIDORM', 27.15, 'Alimentación', 22],
-    ['Factura cliente web', 650.00, 'Facturación', 4, 'ingreso'], ['Beca', 300.00, 'Beca o ayuda', 10, 'ingreso']
+    ['Nómina', 1445.85, 'Nómina', 1, 'ingreso'], ['Alquiler', 717.00, 'Vivienda', 1], ['Cuota autónomo', 88.56, 'Cuota autónomo', 1],
+    ['Wifi', 11.00, 'Telefonía', 1], ['Agua', 37.50, 'Suministros', 1], ['Trade Republic', 300.00, 'Ahorro', 2],
+    ['MERCADONA 2341', 32.35, 'Alimentación 🥗', 3], ['Tren', 24.00, 'Transporte 🚗', 4], ['Kebab', 9.50, 'Ocio 🎯', 5],
+    ['CLAUDE.AI', 21.78, 'Suscripciones', 6], ['INVERSIONES LEVANTE SL', 9.40, 'Sin clasificar', 6],
+    ['ZARA', 39.95, 'Ropa', 8], ['Factura cliente web', 200.00, 'Facturación', 9, 'ingreso'], ['CONSUM', 41.80, 'Alimentación', 12],
+    ['Cine', 14.00, 'Ocio', 14], ['Luz', 48.20, 'Suministros', 15], ['APPLE.COM/BILL', 2.99, 'Suscripciones', 28]
   ];
   return base.filter(function (b) { return b[3] <= tope; }).map(function (b, n) {
     var f = new Date(mesActual.getFullYear(), mesActual.getMonth(), b[3], 10 + (n % 9), (n * 7) % 60);
@@ -384,17 +447,20 @@ function demoDatos() {
 
 async function cargar() {
   var nm = nombreMes.format(mesActual); $('mes-nombre').textContent = nm.charAt(0).toUpperCase() + nm.slice(1);
-  if (DEMO) { movs = demoDatos(); totalAnterior = 1090; pintar(); return; }
+  if (DEMO) { movs = demoDatos(); totalAnterior = 1090; colchonTotal = 400; pintar(); return; }
   var desde = new Date(mesActual);
   var hasta = new Date(mesActual); hasta.setMonth(hasta.getMonth() + 1);
   var antes = new Date(mesActual); antes.setMonth(antes.getMonth() - 1);
   var res = await Promise.all([
     db.from('gastos').select('*').gte('fecha', desde.toISOString()).lt('fecha', hasta.toISOString()).order('fecha', { ascending: false }),
-    db.from('gastos').select('importe, tipo').gte('fecha', antes.toISOString()).lt('fecha', desde.toISOString())
+    db.from('gastos').select('importe, tipo').gte('fecha', antes.toISOString()).lt('fecha', desde.toISOString()),
+    // Colchón: todo lo apuntado en "Ahorro" hasta el final del mes que se ve; un ingreso en "Ahorro" es una retirada
+    db.from('gastos').select('importe, tipo').ilike('categoria', 'Ahorro%').lt('fecha', hasta.toISOString())
   ]);
   if (res[0].error) { avisar('No se pudieron cargar los gastos: ' + res[0].error.message); return; }
   movs = res[0].data || [];
-  totalAnterior = (res[1].data || []).filter(function (g) { return g.tipo !== 'ingreso'; }).reduce(function (s, g) { return s + Number(g.importe); }, 0);
+  totalAnterior = suma((res[1].data || []).filter(function (g) { return g.tipo !== 'ingreso'; }));
+  colchonTotal = (res[2].data || []).reduce(function (s, g) { return s + (g.tipo === 'ingreso' ? -1 : 1) * Number(g.importe); }, 0);
   pintar();
 }
 
@@ -407,7 +473,7 @@ function anillo(orden, total) {
     orden.forEach(function (par) {
       var largo = (par[1] / total) * C;
       var visible = Math.max(largo - hueco, 0.8);
-      s += '<circle class="seg" cx="100" cy="100" r="80" fill="none" stroke="' + info(par[0]).c + '" stroke-width="20"' +
+      s += '<circle class="seg" cx="100" cy="100" r="80" fill="none" stroke="' + par[0] + '" stroke-width="20"' +
         ' stroke-dasharray="' + visible.toFixed(2) + ' ' + (C - visible).toFixed(2) + '"' +
         ' stroke-dashoffset="' + (-acc).toFixed(2) + '" transform="rotate(-90 100 100)"/>';
       acc += largo;
@@ -419,52 +485,120 @@ function anillo(orden, total) {
 function pintar() {
   gastos = movs.filter(function (g) { return g.tipo !== 'ingreso'; });
   var ingresos = movs.filter(function (g) { return g.tipo === 'ingreso'; });
-  var totalIng = ingresos.reduce(function (s, g) { return s + Number(g.importe); }, 0);
-  var total = gastos.reduce(function (s, g) { return s + Number(g.importe); }, 0);
+  var totalIng = suma(ingresos);
+  var total = suma(gastos);
   var hoy = new Date();
   var esMesActual = mesActual.getFullYear() === hoy.getFullYear() && mesActual.getMonth() === hoy.getMonth();
+  var esPasado = mesActual < new Date(hoy.getFullYear(), hoy.getMonth(), 1);
   var diasMes = new Date(mesActual.getFullYear(), mesActual.getMonth() + 1, 0).getDate();
-  var diasPasados = esMesActual ? hoy.getDate() : diasMes;
+  var diasRestantes = esMesActual ? diasMes - hoy.getDate() + 1 : esPasado ? 0 : diasMes;
+  var P = PRESUPUESTO;
 
-  // Total
-  var partes = eur.format(total).replace(/\s?€/, '').split(',');
-  $('total').innerHTML = esc(partes[0]) + '<small>,' + esc(partes[1] || '00') + ' €</small>';
-
-  // Comparación con el mes anterior
-  var comp = $('comp');
-  if (totalAnterior > 0) {
-    var dif = Math.round(((total - totalAnterior) / totalAnterior) * 100);
-    var ant = new Date(mesActual); ant.setMonth(ant.getMonth() - 1);
-    comp.hidden = false;
-    comp.className = 'comp ' + (dif > 0 ? 'sube' : 'baja');
-    comp.textContent = (dif > 0 ? '▲ ' : '▼ ') + Math.abs(dif) + ' % que en ' + soloMes.format(ant);
-  } else { comp.hidden = true; }
-
-  // Datos rápidos
-  var deducible = gastos.filter(function (g) { return g.deducible; }).reduce(function (s, g) { return s + Number(g.importe); }, 0);
-  var ahorro = totalIng - total;
-  $('d-ing').textContent = eurCorto.format(totalIng);
-  $('d-ahorro').textContent = (ahorro > 0 ? '+' : '') + eurCorto.format(ahorro);
-  $('d-ahorro').className = ahorro >= 0 ? 'pos' : 'neg';
-  $('d-ahorro-etq').textContent = totalIng > 0 ? 'ahorro (' + Math.round(ahorro / totalIng * 100) + ' %)' : 'ahorro';
-  $('d-media').textContent = eurCorto.format(diasPasados ? total / diasPasados : 0);
-  $('cats-nota').textContent = deducible ? eur.format(deducible) + ' deducibles' : '';
-
-  // Reparto por categoría
+  // Gasto por categoría (sin emojis) y cuentas del presupuesto
   var porCat = {};
   gastos.forEach(function (g) { var c = catDe(g); porCat[c] = (porCat[c] || 0) + Number(g.importe); });
-  var orden = Object.keys(porCat).map(function (c) { return [c, porCat[c]]; }).sort(function (a, b) { return b[1] - a[1]; });
-  $('anillo').innerHTML = anillo(orden, total);
+  function gastado(c) { return porCat[c] || 0; }
+  var fijosPag = 0, fijosPend = 0, fijosTotal = 0;
+  Object.keys(P.fijos).forEach(function (c) {
+    fijosPag += gastado(c); fijosTotal += P.fijos[c];
+    fijosPend += Math.max(0, P.fijos[c] - gastado(c));
+  });
+  var ahorroMes = gastado('Ahorro');
+  var ahorroPend = Math.max(0, P.ahorro - ahorroMes);
+  var diaADia = total - fijosPag - ahorroMes;
+  var balance = totalIng - total;
+  var libre = esPasado ? balance : balance - fijosPend - ahorroPend;
 
-  var maxCat = orden.length ? orden[0][1] : 1;
-  $('cats').innerHTML = orden.length ? orden.map(function (par) {
-    var c = par[0], v = par[1], col = info(c).c;
-    return '<div class="cat">' + icono(c) +
-      '<span class="nombre">' + esc(c) + '</span>' +
-      '<span class="cuanto">' + eur.format(v) + '</span>' +
-      '<div class="pista"><span class="riel"><span class="relleno" style="width:' + (v / maxCat * 100).toFixed(1) + '%;background:' + col + '"></span></span>' +
-      '<span class="pct">' + Math.round(v / total * 100) + ' %</span></div></div>';
-  }).join('') : '<div class="vacio">Sin gastos todavía.</div>';
+  // Héroe: lo que queda libre (mes en curso) o el balance final (meses pasados)
+  $('centro-etq').textContent = esPasado ? 'Balance del mes' : 'Puedes gastar';
+  var partes = eur.format(libre).replace(/\s?€/, '').split(',');
+  $('total').innerHTML = esc(partes[0]) + '<small>,' + esc(partes[1] || '00') + ' €</small>';
+  var comp = $('comp');
+  comp.hidden = false;
+  if (!esPasado && libre <= 0) {
+    comp.className = 'comp sube'; comp.textContent = 'Presupuesto agotado';
+  } else if (!esPasado && diasRestantes) {
+    comp.className = 'comp baja'; comp.textContent = '≈ ' + eurCorto.format(libre / diasRestantes) + ' al día · ' + diasRestantes + (diasRestantes === 1 ? ' día' : ' días');
+  } else if (totalAnterior > 0) {
+    var dif = Math.round(((total - totalAnterior) / totalAnterior) * 100);
+    var ant = new Date(mesActual); ant.setMonth(ant.getMonth() - 1);
+    comp.className = 'comp ' + (dif > 0 ? 'sube' : 'baja');
+    comp.textContent = (dif > 0 ? '▲ ' : '▼ ') + Math.abs(dif) + ' % de gasto que en ' + soloMes.format(ant);
+  } else { comp.hidden = true; }
+
+  // Anillo: qué parte de tus ingresos se va a fijos, día a día y ahorro; el hueco es lo libre
+  var base = Math.max(totalIng, P.ingresos, total);
+  var segs = esPasado
+    ? [[GRUPOS.fijos.c, fijosPag], [GRUPOS.variables.c, diaADia], [GRUPOS.ahorro.c, ahorroMes]]
+    : [[GRUPOS.fijos.c, fijosPag + fijosPend], [GRUPOS.variables.c, diaADia], [GRUPOS.ahorro.c, ahorroMes + ahorroPend]];
+  $('anillo').innerHTML = anillo(segs.filter(function (s) { return s[1] > 0; }), base);
+  $('leyenda').innerHTML = ['fijos', 'variables', 'ahorro'].map(function (k, i) {
+    return '<span><i style="background:' + GRUPOS[k].c + '"></i>' + GRUPOS[k].n + ' ' + eurCorto.format(segs[i][1]) + '</span>';
+  }).join('') + '<span><i style="background:rgba(255,255,255,.18)"></i>Libre</span>';
+
+  // Datos rápidos
+  $('d-ing').textContent = eurCorto.format(totalIng);
+  $('d-gas').textContent = eurCorto.format(total);
+  $('d-bal').textContent = (balance > 0 ? '+' : '') + eurCorto.format(balance);
+  $('d-bal').className = balance >= 0 ? 'pos' : 'neg';
+  var deducible = suma(gastos.filter(function (g) { return g.deducible; }));
+  $('cats-nota').textContent = deducible ? eur.format(deducible) + ' deducibles' : '';
+
+  // Balance del mes
+  function linea(etq, v, clase) {
+    return '<div class="linea-bal ' + (clase || '') + '"><span class="etq-bal">' + etq + '</span><b>' +
+      (v > 0 && !clase ? '+' : '') + eur.format(v) + '</b></div>';
+  }
+  var htmlBal = linea('Ingresos', totalIng) + linea('Gastos fijos', -fijosPag) + linea('Día a día y otros', -diaADia) +
+    linea('Ahorro', -ahorroMes) + linea('Balance', balance, 'total');
+  if (!esPasado && (fijosPend > 0 || ahorroPend > 0)) {
+    htmlBal += '<div class="sep-bal">Aún por salir</div>' +
+      (fijosPend > 0 ? linea('Fijos pendientes', -fijosPend) : '') +
+      (ahorroPend > 0 ? linea('Ahorro pendiente', -ahorroPend) : '') +
+      linea('Libre para gastar', libre, 'total libre' + (libre < 0 ? ' rojo' : ''));
+  }
+  var notas = [];
+  if (!esPasado && totalIng < P.ingresos) notas.push('Te faltan ' + eur.format(P.ingresos - totalIng) + ' para tus ingresos previstos (' + eur.format(P.ingresos) + ').');
+  if (totalAnterior > 0 && !esPasado) notas.push('Mes anterior: ' + eur.format(totalAnterior) + ' gastados.');
+  $('balance').innerHTML = htmlBal + (notas.length ? '<p class="nota-bal">' + esc(notas.join(' ')) + '</p>' : '');
+
+  // Presupuesto por apartados
+  var hPres = '<div class="grupo"><div class="grupo-cab"><span>Fijos</span><span>' + eur.format(fijosPag) + ' de ' + eur.format(fijosTotal) + '</span></div>' +
+    Object.keys(P.fijos).map(function (c) {
+      var L = P.fijos[c], s = gastado(c), falta = L - s;
+      return '<div class="fijo">' + icono(c) + '<span><span class="nombre">' + esc(c) + '</span><span class="sub">' +
+        eur.format(s) + ' de ' + eur.format(L) + '</span></span>' +
+        (falta <= 0.5 ? '<span class="estado ok">Pagado</span>' : '<span class="estado pend">Falta ' + eur.format(falta) + '</span>') + '</div>';
+    }).join('') + '</div>';
+
+  var varTotal = 0, varQueda = 0;
+  Object.keys(P.variables).forEach(function (c) { varTotal += P.variables[c]; varQueda += Math.max(0, P.variables[c] - gastado(c)); });
+  hPres += '<div class="grupo"><div class="grupo-cab"><span>Día a día</span><span>quedan ' + eur.format(varQueda) + ' de ' + eur.format(varTotal) + '</span></div><div class="cats">' +
+    Object.keys(P.variables).map(function (c) {
+      var L = P.variables[c], s = gastado(c), resto = L - s, pct = L ? s / L * 100 : 0;
+      var queda = resto >= 0
+        ? 'Quedan ' + eur.format(resto) + (diasRestantes && resto > 0 ? ' · ' + eur.format(resto / diasRestantes) + '/día' : '')
+        : 'Te has pasado ' + eur.format(-resto);
+      return '<div class="cat pp">' + icono(c) + '<span class="nombre">' + esc(c) + '</span>' +
+        '<span class="cuanto">' + eur.format(s) + ' <small>/ ' + eurCorto.format(L) + '</small></span>' +
+        '<div class="pista"><span class="riel"><span class="relleno' + (pct >= 90 ? ' aviso' : '') + '" style="width:' + Math.min(100, pct).toFixed(1) + '%;background:' + info(c).c + '"></span></span>' +
+        '<span class="queda' + (resto < 0 ? ' pasado' : '') + '">' + queda + '</span></div></div>';
+    }).join('') + '</div></div>';
+
+  hPres += '<div class="grupo"><div class="grupo-cab"><span>Ahorro</span><span>Trade Republic</span></div>' +
+    '<div class="meta-caja"><div class="meta-cab"><b>Meta del mes</b><span>' + eur.format(ahorroMes) + ' / ' + eur.format(P.ahorro) + '</span></div>' +
+    '<div class="riel-meta"><span style="width:' + Math.min(100, ahorroMes / P.ahorro * 100).toFixed(1) + '%"></span></div></div>' +
+    '<div class="meta-caja"><div class="meta-cab"><b>Colchón de emergencia</b><span>' + eur.format(colchonTotal) + ' / ' + eur.format(P.colchon) + '</span></div>' +
+    '<div class="riel-meta"><span style="width:' + Math.max(0, Math.min(100, colchonTotal / P.colchon * 100)).toFixed(1) + '%"></span></div></div></div>';
+
+  var fuera = Object.keys(porCat).filter(function (c) { return !(c in P.fijos) && !(c in P.variables) && c !== 'Ahorro'; })
+    .sort(function (a, b) { return porCat[b] - porCat[a]; });
+  if (fuera.length) {
+    hPres += '<div class="grupo"><div class="grupo-cab"><span>Fuera del presupuesto</span><span>' + eur.format(suma(fuera.map(function (c) { return { importe: porCat[c] }; }))) + '</span></div>' +
+      fuera.map(function (c) { return '<div class="fuera"><span>' + info(c).i + ' ' + esc(c) + '</span><span>' + eur.format(porCat[c]) + '</span></div>'; }).join('') + '</div>';
+  }
+  $('presupuesto').innerHTML = hPres;
+  $('pres-nota').textContent = esMesActual ? diasRestantes + (diasRestantes === 1 ? ' día por delante' : ' días por delante') : '';
 
   // Día a día
   var porDia = [];
