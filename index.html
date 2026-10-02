@@ -167,6 +167,9 @@
   .fijo .ico { grid-row: auto; }
   .estado { font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px; white-space: nowrap; }
   .estado.ok { background: color-mix(in srgb, var(--ok) 16%, transparent); color: var(--ok); }
+  button.estado { border: 0; cursor: pointer; font-family: inherit; }
+  .estado-caja { display: grid; justify-items: end; gap: 4px; }
+  .marcar { border: 0; background: none; padding: 2px 0; font-size: 12px; font-weight: 600; color: var(--acento); }
   .estado.pend { background: color-mix(in srgb, var(--aviso) 14%, transparent); color: var(--aviso); }
   .pp .queda { font-size: 13px; color: var(--tenue); }
   .pp .queda.pasado { color: var(--aviso); font-weight: 600; }
@@ -359,6 +362,11 @@ var PRESUPUESTO = {
   colchon: 3300
 };
 var presupuestoEnNube = false;
+var tablaAjustes = false;
+// Fijos marcados a mano como pagados, por mes: { "2026-10": ["Suministros"] } (tabla "ajustes", clave "pagados")
+var pagados = {};
+function claveMes() { return mesActual.getFullYear() + '-' + String(mesActual.getMonth() + 1).padStart(2, '0'); }
+function marcadoPagado(c) { return (pagados[claveMes()] || []).indexOf(c) !== -1; }
 var GRUPOS = { fijos: { n: 'Fijos', c: '#A78BFA' }, variables: { n: 'Día a día', c: '#FBBF24' }, ahorro: { n: 'Ahorro', c: '#A3E635' } };
 
 var ELEGIBLES = Object.keys(CATS).filter(function (c) { return c !== 'Sin clasificar'; });
@@ -470,15 +478,19 @@ async function cargar() {
     db.from('gastos').select('importe, tipo').gte('fecha', antes.toISOString()).lt('fecha', desde.toISOString()),
     // Colchón: todo lo apuntado en "Ahorro" hasta el final del mes que se ve; un ingreso en "Ahorro" es una retirada
     db.from('gastos').select('importe, tipo').ilike('categoria', 'Ahorro%').lt('fecha', hasta.toISOString()),
-    db.from('ajustes').select('valor').eq('clave', 'presupuesto').maybeSingle()
+    db.from('ajustes').select('clave, valor').in('clave', ['presupuesto', 'pagados'])
   ]);
   if (res[0].error) { avisar('No se pudieron cargar los gastos: ' + res[0].error.message); return; }
   movs = res[0].data || [];
   totalAnterior = suma((res[1].data || []).filter(function (g) { return g.tipo !== 'ingreso'; }));
   colchonTotal = (res[2].data || []).reduce(function (s, g) { return s + (g.tipo === 'ingreso' ? -1 : 1) * Number(g.importe); }, 0);
   // Si la tabla "ajustes" aún no existe, se usa el presupuesto por defecto de arriba
-  presupuestoEnNube = !res[3].error && !!(res[3].data && res[3].data.valor);
-  if (presupuestoEnNube) PRESUPUESTO = Object.assign({}, PRESUPUESTO, res[3].data.valor);
+  tablaAjustes = !res[3].error;
+  var aj = {};
+  (res[3].data || []).forEach(function (r) { aj[r.clave] = r.valor; });
+  presupuestoEnNube = !!aj.presupuesto;
+  if (presupuestoEnNube) PRESUPUESTO = Object.assign({}, PRESUPUESTO, aj.presupuesto);
+  pagados = aj.pagados || {};
   pintar();
 }
 
@@ -519,7 +531,7 @@ function pintar() {
   var fijosPag = 0, fijosPend = 0, fijosTotal = 0;
   Object.keys(P.fijos).forEach(function (c) {
     fijosPag += gastado(c); fijosTotal += P.fijos[c];
-    fijosPend += Math.max(0, P.fijos[c] - gastado(c));
+    if (!marcadoPagado(c)) fijosPend += Math.max(0, P.fijos[c] - gastado(c));
   });
   var ahorroMes = gastado('Ahorro');
   var ahorroPend = Math.max(0, P.ahorro - ahorroMes);
@@ -583,10 +595,12 @@ function pintar() {
   // Presupuesto por apartados
   var hPres = '<div class="grupo"><div class="grupo-cab"><span>Fijos</span><span>' + eur.format(fijosPag) + ' de ' + eur.format(fijosTotal) + '</span></div>' +
     Object.keys(P.fijos).map(function (c) {
-      var L = P.fijos[c], s = gastado(c), falta = L - s;
+      var L = P.fijos[c], s = gastado(c), falta = L - s, aMano = marcadoPagado(c);
+      var estado = falta <= 0.5 ? '<span class="estado ok">Pagado</span>'
+        : aMano ? '<button class="estado ok" data-pagado="' + esc(c) + '" title="Quitar la marca">Pagado ✓</button>'
+        : '<span class="estado-caja"><span class="estado pend">Falta ' + eur.format(falta) + '</span><button class="marcar" data-pagado="' + esc(c) + '">Marcar pagado</button></span>';
       return '<div class="fijo">' + icono(c) + '<span><span class="nombre">' + esc(c) + '</span><span class="sub">' +
-        eur.format(s) + ' de ' + eur.format(L) + '</span></span>' +
-        (falta <= 0.5 ? '<span class="estado ok">Pagado</span>' : '<span class="estado pend">Falta ' + eur.format(falta) + '</span>') + '</div>';
+        eur.format(s) + ' de ' + eur.format(L) + (aMano && falta > 0.5 ? ' · marcado a mano' : '') + '</span></span>' + estado + '</div>';
     }).join('') + '</div>';
 
   var varTotal = 0, varQueda = 0;
@@ -716,6 +730,23 @@ async function guardarPresupuesto() {
   avisar('Presupuesto guardado.');
   cargar();
 }
+
+// Marcar / desmarcar un fijo como pagado este mes (cuando ha salido por menos de lo presupuestado)
+document.addEventListener('click', async function (e) {
+  var btn = e.target.closest('button[data-pagado]');
+  if (!btn) return;
+  e.preventDefault();
+  if (DEMO) { avisar('Modo demostración: no se guarda nada.'); return; }
+  if (!tablaAjustes) { avisar('Para guardar la marca, crea primero la tabla "ajustes" en Supabase.'); return; }
+  var c = btn.dataset.pagado, mes = claveMes();
+  var nuevo = JSON.parse(JSON.stringify(pagados));
+  var lista = nuevo[mes] || [];
+  nuevo[mes] = lista.indexOf(c) === -1 ? lista.concat([c]) : lista.filter(function (x) { return x !== c; });
+  var r = await db.from('ajustes').upsert({ clave: 'pagados', valor: nuevo, actualizado: new Date().toISOString() }, { onConflict: 'clave' });
+  if (r.error) { avisar('No se pudo guardar la marca.'); return; }
+  avisar(nuevo[mes].indexOf(c) !== -1 ? c + ' marcado como pagado este mes.' : 'Marca quitada.');
+  cargar();
+});
 
 /* ---------- Acciones ---------- */
 async function clasificar(id, categoria, palabra) {
